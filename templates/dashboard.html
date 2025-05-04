@@ -1,0 +1,266 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Newsletter Automation{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Dashboard</h1>
+    <p class="text-muted">Overview of your newsletter activities</p>
+</div>
+
+<div class="dashboard-stats">
+    <div class="row">
+        <div class="col-md-3 col-sm-6">
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-rss"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>{{ feed_count }}</h3>
+                    <p>Content Sources</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 col-sm-6">
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-newspaper"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>{{ article_count }}</h3>
+                    <p>Articles</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 col-sm-6">
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-pen-alt"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>{{ draft_count }}</h3>
+                    <p>Drafts</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 col-sm-6">
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-envelope"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>{{ newsletter_count }}</h3>
+                    <p>Newsletters</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-lg-8">
+        <!-- Recent articles section -->
+        <div class="card dashboard-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5>Recently Added Articles</h5>
+                <a href="{{ url_for('articles') }}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body p-0">
+                {% if recent_articles %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Source</th>
+                                <th>Added</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for article in recent_articles %}
+                            <tr>
+                                <td>
+                                    <a href="{{ article.url }}" target="_blank">{{ truncate_text(article.title, 40) }}</a>
+                                </td>
+                                <td>{{ article.feed.name }}</td>
+                                <td>{{ format_date(article.fetched_at) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <p>No articles yet. Add some content sources to get started.</p>
+                    <a href="{{ url_for('feeds') }}" class="btn btn-primary">Add Content Sources</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Recent drafts section -->
+        <div class="card dashboard-card mt-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5>Recent Drafts</h5>
+                <a href="{{ url_for('drafts') }}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body p-0">
+                {% if recent_drafts %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Status</th>
+                                <th>Updated</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for draft in recent_drafts %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('edit_draft', draft_id=draft.id) }}">{{ truncate_text(draft.title, 40) }}</a>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if draft.status == 'published' else ('info' if draft.status == 'scheduled' else 'secondary') }}">
+                                        {{ draft.status }}
+                                    </span>
+                                </td>
+                                <td>{{ format_date(draft.updated_at) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <p>No drafts yet. Create your first newsletter draft.</p>
+                    <a href="{{ url_for('new_draft') }}" class="btn btn-primary">Create Draft</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Newsletter analytics card -->
+        <div class="card dashboard-card">
+            <div class="card-header">
+                <h5>Newsletter Analytics</h5>
+            </div>
+            <div class="card-body">
+                {% if newsletter_count > 0 %}
+                <div class="analytics-item">
+                    <div class="progress mb-2">
+                        <div class="progress-bar" role="progressbar" style="width: {{ open_rate }}%;" aria-valuenow="{{ open_rate }}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Open Rate</span>
+                        <span>{{ "%.1f"|format(open_rate) }}%</span>
+                    </div>
+                </div>
+                
+                <div class="analytics-item mt-3">
+                    <div class="progress mb-2">
+                        <div class="progress-bar" role="progressbar" style="width: {{ click_rate }}%;" aria-valuenow="{{ click_rate }}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Click Rate</span>
+                        <span>{{ "%.1f"|format(click_rate) }}%</span>
+                    </div>
+                </div>
+                
+                <div class="text-center mt-3">
+                    <p class="text-muted">From {{ total_recipients }} total recipients</p>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <p>No newsletters sent yet. Schedule your first newsletter to see analytics.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Upcoming newsletters card -->
+        <div class="card dashboard-card mt-4">
+            <div class="card-header">
+                <h5>Upcoming Newsletters</h5>
+            </div>
+            <div class="card-body">
+                {% if upcoming_newsletters %}
+                <ul class="list-group list-group-flush">
+                    {% for newsletter in upcoming_newsletters %}
+                    <li class="list-group-item">
+                        <h6>{{ newsletter.subject }}</h6>
+                        <p class="text-muted mb-1">
+                            <i class="far fa-clock"></i> 
+                            {{ format_date(newsletter.scheduled_for) }}
+                        </p>
+                        <a href="{{ url_for('send_newsletter_now', newsletter_id=newsletter.id) }}" 
+                           class="btn btn-sm btn-outline-primary"
+                           onclick="return confirm('Are you sure you want to send this newsletter now?')">
+                            Send Now
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="empty-state">
+                    <p>No upcoming newsletters scheduled.</p>
+                    <a href="{{ url_for('schedule_newsletter') }}" class="btn btn-primary">Schedule Newsletter</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Recent newsletters card -->
+        <div class="card dashboard-card mt-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5>Recent Newsletters</h5>
+                <a href="{{ url_for('newsletters') }}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body p-0">
+                {% if recent_newsletters %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Subject</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for newsletter in recent_newsletters %}
+                            <tr>
+                                <td>{{ truncate_text(newsletter.subject, 30) }}</td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if newsletter.status == 'sent' else ('info' if newsletter.status == 'scheduled' else ('warning' if newsletter.status == 'sending' else 'danger')) }}">
+                                        {{ newsletter.status }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <p>No newsletters sent yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add any dashboard specific JavaScript here
+});
+</script>
+{% endblock %}

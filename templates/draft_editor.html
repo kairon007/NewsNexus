@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ draft.title if draft else 'New Draft' }} - Newsletter Automation{% endblock %}
+
+{% block extra_head %}
+<!-- Add SimpleMDE for Markdown editing -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.css">
+<script src="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between">
+    <div>
+        <h1>{{ draft.title if draft else 'New Draft' }}</h1>
+        <p class="text-muted">{{ 'Edit your newsletter draft' if draft else 'Create a new newsletter draft' }}</p>
+    </div>
+    <div>
+        {% if draft %}
+        <div class="d-flex">
+            {% if draft.notion_page_id %}
+            <form method="POST" action="{{ url_for('sync_from_notion', draft_id=draft.id) }}" class="me-2">
+                <button type="submit" class="btn btn-outline-primary">
+                    <i class="fas fa-sync"></i> Sync from Notion
+                </button>
+            </form>
+            {% endif %}
+            
+            {% if draft.status == 'draft' %}
+            <a href="{{ url_for('schedule_newsletter') }}?draft_id={{ draft.id }}" class="btn btn-success">
+                <i class="fas fa-calendar"></i> Schedule
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <!-- Editor column -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('edit_draft', draft_id=draft.id) if draft else url_for('new_draft') }}">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Newsletter Title</label>
+                        <input type="text" class="form-control" id="title" name="title" value="{{ draft.title if draft else '' }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="content" class="form-label">Content</label>
+                        <textarea class="form-control" id="content" name="content" rows="15">{{ draft.content if draft else '' }}</textarea>
+                        <div class="form-text">
+                            Use Markdown for formatting. Headers (#), lists (*), links [text](url), etc.
+                        </div>
+                    </div>
+                    
+                    {% if articles %}
+                    <h5 class="mb-3">Selected Articles</h5>
+                    <div class="selected-articles mb-3">
+                        {% for article in articles %}
+                        <div class="card mb-2">
+                            <div class="card-body">
+                                <h6 class="card-title">{{ article.title }}</h6>
+                                <p class="text-muted small">
+                                    From {{ article.feed.name }} • 
+                                    {{ format_date(article.published_at) if article.published_at else 'Date unknown' }}
+                                </p>
+                                <div class="d-flex">
+                                    <button type="button" class="btn btn-sm btn-outline-primary me-2 insert-article-btn" 
+                                            data-title="{{ article.title }}" 
+                                            data-url="{{ article.url }}">
+                                        Insert Title & Link
+                                    </button>
+                                    <a href="{{ article.url }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-external-link-alt"></i> View Original
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{{ url_for('drafts') }}" class="btn btn-outline-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Save Draft</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Preview column -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Preview</h5>
+            </div>
+            <div class="card-body">
+                <div id="preview-content" class="newsletter-preview">
+                    <!-- Preview content will be populated by JavaScript -->
+                    <p class="text-center text-muted">Start typing to see preview</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize the markdown editor
+    var simplemde = new SimpleMDE({ 
+        element: document.getElementById("content"),
+        spellChecker: true,
+        autofocus: true,
+        placeholder: "Write your newsletter content here...",
+        status: ['lines', 'words', 'cursor'],
+        renderingConfig: {
+            singleLineBreaks: false
+        }
+    });
+    
+    // Update preview when editor changes
+    simplemde.codemirror.on("change", function() {
+        updatePreview(simplemde.value());
+    });
+    
+    // Initial preview update
+    updatePreview(simplemde.value());
+    
+    // Handle article insert buttons
+    const insertButtons = document.querySelectorAll('.insert-article-btn');
+    insertButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const title = this.getAttribute('data-title');
+            const url = this.getAttribute('data-url');
+            
+            const markdownLink = `## ${title}\n\nRead more: [${title}](${url})\n\n`;
+            
+            // Insert at cursor position
+            simplemde.codemirror.replaceSelection(markdownLink);
+            simplemde.codemirror.focus();
+        });
+    });
+});
+
+function updatePreview(markdown) {
+    const previewEl = document.getElementById('preview-content');
+    
+    if (!markdown) {
+        previewEl.innerHTML = '<p class="text-center text-muted">Start typing to see preview</p>';
+        return;
+    }
+    
+    // Convert markdown to HTML (using SimpleMDE's converter)
+    try {
+        // Use marked for rendering if it's available (part of SimpleMDE)
+        if (typeof marked !== 'undefined') {
+            previewEl.innerHTML = marked(markdown);
+        } else {
+            // Simple fallback if marked is not available
+            let html = markdown;
+            // Convert headers
+            html = html.replace(/^# (.*?)$/gm, '<h1>$1</h1>');
+            html = html.replace(/^## (.*?)$/gm, '<h2>$1</h2>');
+            html = html.replace(/^### (.*?)$/gm, '<h3>$1</h3>');
+            
+            // Convert links
+            html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2">$1</a>');
+            
+            // Convert line breaks to paragraphs
+            let paragraphs = html.split('\n\n');
+            html = paragraphs.map(p => {
+                if (!p.startsWith('<h') && !p.startsWith('<p')) {
+                    return `<p>${p}</p>`;
+                }
+                return p;
+            }).join('\n');
+            
+            previewEl.innerHTML = html;
+        }
+    } catch (e) {
+        previewEl.innerHTML = '<p class="text-danger">Error rendering preview</p>';
+        console.error('Error rendering markdown:', e);
+    }
+}
+</script>
+{% endblock %}

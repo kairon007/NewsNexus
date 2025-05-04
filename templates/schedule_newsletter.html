@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+
+{% block title %}Schedule Newsletter - Newsletter Automation{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Schedule Newsletter</h1>
+        <p class="text-muted">Plan and schedule your newsletter campaign</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8 col-md-12">
+        <div class="card">
+            <div class="card-body">
+                {% if drafts %}
+                <form method="POST" action="{{ url_for('schedule_newsletter') }}" class="needs-validation" novalidate>
+                    <div class="mb-4">
+                        <label for="draft_id" class="form-label">Select Draft</label>
+                        <select class="form-select" id="draft_id" name="draft_id" required>
+                            <option value="">Choose a draft...</option>
+                            {% for draft in drafts %}
+                            <option value="{{ draft.id }}" {% if request.args.get('draft_id')|int == draft.id %}selected{% endif %}>
+                                {{ draft.title }} (Last updated: {{ format_date(draft.updated_at) }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="invalid-feedback">
+                            Please select a draft for your newsletter.
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="subject" class="form-label">Newsletter Subject</label>
+                        <input type="text" class="form-control" id="subject" name="subject" required>
+                        <div class="form-text">
+                            A compelling subject increases open rates.
+                        </div>
+                        <div class="invalid-feedback">
+                            Please enter a subject for your newsletter.
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <label for="scheduled_date" class="form-label">Date</label>
+                            <input type="date" class="form-control" id="scheduled_date" name="scheduled_date" required>
+                            <div class="invalid-feedback">
+                                Please select a date.
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-4">
+                            <label for="scheduled_time" class="form-label">Time (24-hour format)</label>
+                            <input type="time" class="form-control" id="scheduled_time" name="scheduled_time" required>
+                            <div class="invalid-feedback">
+                                Please select a time.
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info mb-4">
+                        <i class="fas fa-info-circle"></i> The newsletter will be sent to all active subscribers at the scheduled time.
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('newsletters') }}" class="btn btn-outline-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Schedule Newsletter</button>
+                    </div>
+                </form>
+                {% else %}
+                <div class="empty-state">
+                    <h4>No available drafts</h4>
+                    <p>You need to create a draft before you can schedule a newsletter.</p>
+                    <a href="{{ url_for('new_draft') }}" class="btn btn-primary">Create New Draft</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4 col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>Scheduling Tips</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">
+                        <i class="fas fa-clock text-primary"></i> 
+                        <strong>Best Time:</strong> Tuesday to Thursday, 10 AM - 2 PM typically have higher open rates.
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-envelope text-primary"></i> 
+                        <strong>Subject Lines:</strong> Keep them under 50 characters for better deliverability.
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-users text-primary"></i> 
+                        <strong>Audience:</strong> Consider your subscribers' time zones when scheduling.
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-redo text-primary"></i> 
+                        <strong>Testing:</strong> Test your newsletter delivery with a small group first.
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set default date and time values (current date + 1 hour)
+    const now = new Date();
+    now.setHours(now.getHours() + 1);
+    
+    const dateInput = document.getElementById('scheduled_date');
+    const timeInput = document.getElementById('scheduled_time');
+    
+    if (dateInput && timeInput) {
+        // Format date as YYYY-MM-DD
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        dateInput.value = `${year}-${month}-${day}`;
+        
+        // Format time as HH:MM
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        timeInput.value = `${hours}:${minutes}`;
+    }
+    
+    // Populate subject when draft is selected
+    const draftSelect = document.getElementById('draft_id');
+    const subjectInput = document.getElementById('subject');
+    
+    if (draftSelect && subjectInput) {
+        draftSelect.addEventListener('change', function() {
+            const selectedOption = draftSelect.options[draftSelect.selectedIndex];
+            if (selectedOption.value && !subjectInput.value) {
+                // Extract title from the selected option text (before the parenthesis)
+                const titleText = selectedOption.text.split(' (')[0];
+                subjectInput.value = titleText;
+            }
+        });
+        
+        // Trigger change event if a draft is pre-selected
+        if (draftSelect.value) {
+            draftSelect.dispatchEvent(new Event('change'));
+        }
+    }
+});
+</script>
+{% endblock %}

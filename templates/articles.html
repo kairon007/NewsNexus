@@ -1,0 +1,265 @@
+{% extends 'base.html' %}
+
+{% block title %}Articles - Newsletter Automation{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between">
+    <div>
+        <h1>Articles</h1>
+        <p class="text-muted">Browse and manage fetched content</p>
+    </div>
+    <div>
+        <a href="{{ url_for('feeds') }}" class="btn btn-outline-primary me-2">
+            <i class="fas fa-rss"></i> Manage Sources
+        </a>
+        <button class="btn btn-primary" onclick="showGenerateDraftModal()">
+            <i class="fas fa-magic"></i> Generate Draft
+        </button>
+    </div>
+</div>
+
+<!-- Filter controls -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('articles') }}">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label for="feed_id" class="form-label">Filter by Source</label>
+                    <select class="form-select" id="feed_id" name="feed_id">
+                        <option value="">All Sources</option>
+                        {% for feed in feeds %}
+                        <option value="{{ feed.id }}" {% if current_feed_id == feed.id %}selected{% endif %}>{{ feed.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="unused_only" name="unused_only" value="true" {% if unused_only %}checked{% endif %}>
+                        <label class="form-check-label" for="unused_only">
+                            Show unused articles only
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-4 text-end">
+                    <button type="submit" class="btn btn-primary">Apply Filters</button>
+                    <a href="{{ url_for('articles') }}" class="btn btn-outline-secondary">Reset</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-body">
+                {% if articles %}
+                <form id="articlesForm" action="{{ url_for('generate_draft') }}" method="POST">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px;">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="selectAll">
+                                        </div>
+                                    </th>
+                                    <th>Title</th>
+                                    <th>Source</th>
+                                    <th>Published</th>
+                                    <th>Reading Time</th>
+                                    <th>Used</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for article in articles %}
+                                <tr>
+                                    <td>
+                                        <div class="form-check">
+                                            <input class="form-check-input article-checkbox" type="checkbox" name="article_ids" value="{{ article.id }}" id="article-{{ article.id }}">
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <a href="{{ article.url }}" target="_blank" class="article-title">
+                                            {{ article.title }}
+                                        </a>
+                                        <button type="button" class="btn btn-sm btn-link preview-btn"
+                                                data-bs-toggle="collapse" data-bs-target="#preview-{{ article.id }}">
+                                            <i class="fas fa-eye"></i> Preview
+                                        </button>
+                                        <div class="collapse" id="preview-{{ article.id }}">
+                                            <div class="article-preview">
+                                                {{ truncate_text(article.content, 300) }}
+                                                <div class="text-end">
+                                                    <a href="{{ article.url }}" target="_blank" class="btn btn-sm btn-outline-primary">Read Original</a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ article.feed.name }}</td>
+                                    <td>
+                                        {% if article.published_at %}
+                                            {{ format_date(article.published_at, False) }}
+                                        {% else %}
+                                            <span class="text-muted">Unknown</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ get_reading_time(article.content) }} min</td>
+                                    <td>
+                                        <span class="badge bg-{{ 'secondary' if article.used_in_draft else 'success' }}">
+                                            {{ 'Used' if article.used_in_draft else 'Available' }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    <nav>
+                        <ul class="pagination justify-content-center">
+                            {% if pagination.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('articles', page=pagination.prev_num, feed_id=current_feed_id, unused_only=unused_only) }}">
+                                    Previous
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#" tabindex="-1">Previous</a>
+                            </li>
+                            {% endif %}
+                            
+                            {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                                {% if page_num %}
+                                    {% if page_num == pagination.page %}
+                                    <li class="page-item active">
+                                        <a class="page-link" href="#">{{ page_num }}</a>
+                                    </li>
+                                    {% else %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('articles', page=page_num, feed_id=current_feed_id, unused_only=unused_only) }}">
+                                            {{ page_num }}
+                                        </a>
+                                    </li>
+                                    {% endif %}
+                                {% else %}
+                                <li class="page-item disabled">
+                                    <a class="page-link" href="#">…</a>
+                                </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if pagination.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('articles', page=pagination.next_num, feed_id=current_feed_id, unused_only=unused_only) }}">
+                                    Next
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#" tabindex="-1">Next</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    
+                    <div class="d-flex justify-content-center mt-3">
+                        <button type="button" class="btn btn-primary" onclick="showGenerateDraftModal()">
+                            <i class="fas fa-magic"></i> Generate Draft from Selected
+                        </button>
+                    </div>
+                </form>
+                {% else %}
+                <div class="empty-state">
+                    <h4>No articles found</h4>
+                    <p>Add content sources and fetch articles to fill your newsletter.</p>
+                    <a href="{{ url_for('feeds') }}" class="btn btn-primary">Manage Content Sources</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Generate Draft Modal -->
+<div class="modal fade" id="generateDraftModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Generate Newsletter Draft</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>You're about to generate a newsletter draft from <span id="selectedCount">0</span> selected articles.</p>
+                <p>The system will use AI to create a draft with summaries of the selected articles.</p>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> This may take a few moments depending on the number of articles.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="generateDraftBtn">Generate Draft</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Select all functionality
+    const selectAllCheckbox = document.getElementById('selectAll');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('.article-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = selectAllCheckbox.checked;
+            });
+        });
+    }
+    
+    // Count selected items
+    const articleCheckboxes = document.querySelectorAll('.article-checkbox');
+    articleCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectedCount);
+    });
+    
+    // Update initial count
+    updateSelectedCount();
+    
+    // Generate Draft button
+    const generateDraftBtn = document.getElementById('generateDraftBtn');
+    if (generateDraftBtn) {
+        generateDraftBtn.addEventListener('click', function() {
+            const form = document.getElementById('articlesForm');
+            if (form) {
+                form.submit();
+            }
+        });
+    }
+});
+
+function updateSelectedCount() {
+    const selectedCheckboxes = document.querySelectorAll('.article-checkbox:checked');
+    const countElement = document.getElementById('selectedCount');
+    if (countElement) {
+        countElement.textContent = selectedCheckboxes.length;
+    }
+}
+
+function showGenerateDraftModal() {
+    const selectedCheckboxes = document.querySelectorAll('.article-checkbox:checked');
+    
+    if (selectedCheckboxes.length === 0) {
+        alert('Please select at least one article to generate a draft.');
+        return;
+    }
+    
+    const modal = new bootstrap.Modal(document.getElementById('generateDraftModal'));
+    modal.show();
+}
+</script>
+{% endblock %}

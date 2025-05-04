@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+
+{% block title %}Newsletters - Newsletter Automation{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between">
+    <div>
+        <h1>Newsletters</h1>
+        <p class="text-muted">Manage and track your newsletter campaigns</p>
+    </div>
+    <a href="{{ url_for('schedule_newsletter') }}" class="btn btn-primary">
+        <i class="fas fa-calendar-plus"></i> Schedule Newsletter
+    </a>
+</div>
+
+<!-- Filter controls -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('newsletters') }}">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label for="status" class="form-label">Filter by Status</label>
+                    <select class="form-select" id="status" name="status">
+                        <option value="">All Newsletters</option>
+                        <option value="scheduled" {% if request.args.get('status') == 'scheduled' %}selected{% endif %}>Scheduled</option>
+                        <option value="sending" {% if request.args.get('status') == 'sending' %}selected{% endif %}>Sending</option>
+                        <option value="sent" {% if request.args.get('status') == 'sent' %}selected{% endif %}>Sent</option>
+                        <option value="failed" {% if request.args.get('status') == 'failed' %}selected{% endif %}>Failed</option>
+                    </select>
+                </div>
+                <div class="col-md-8 text-end">
+                    <button type="submit" class="btn btn-primary">Apply Filter</button>
+                    <a href="{{ url_for('newsletters') }}" class="btn btn-outline-secondary">Reset</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-body">
+                {% if newsletters %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Subject</th>
+                                <th>Status</th>
+                                <th>Scheduled For</th>
+                                <th>Sent</th>
+                                <th>Recipients</th>
+                                <th>Opens</th>
+                                <th>Clicks</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for newsletter in newsletters %}
+                            <tr>
+                                <td>{{ newsletter.subject }}</td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if newsletter.status == 'sent' else ('info' if newsletter.status == 'scheduled' else ('warning' if newsletter.status == 'sending' else 'danger')) }}">
+                                        {{ newsletter.status }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if newsletter.scheduled_for %}
+                                        {{ format_date(newsletter.scheduled_for) }}
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if newsletter.sent_at %}
+                                        {{ format_date(newsletter.sent_at) }}
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ newsletter.recipient_count or 0 }}</td>
+                                <td>{{ newsletter.open_count or 0 }}</td>
+                                <td>{{ newsletter.click_count or 0 }}</td>
+                                <td>
+                                    {% if newsletter.status == 'scheduled' %}
+                                    <div class="btn-group">
+                                        <form method="POST" action="{{ url_for('send_newsletter_now', newsletter_id=newsletter.id) }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-primary" 
+                                                    onclick="return confirm('Are you sure you want to send this newsletter now?')">
+                                                <i class="fas fa-paper-plane"></i> Send Now
+                                            </button>
+                                        </form>
+                                        <form method="POST" action="{{ url_for('cancel_newsletter', newsletter_id=newsletter.id) }}" class="ms-2">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                    onclick="return confirm('Are you sure you want to cancel this newsletter?')">
+                                                <i class="fas fa-ban"></i> Cancel
+                                            </button>
+                                        </form>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if newsletter.status == 'failed' %}
+                                    <form method="POST" action="{{ url_for('send_newsletter_now', newsletter_id=newsletter.id) }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-warning"
+                                                onclick="return confirm('Try to send this newsletter again?')">
+                                            <i class="fas fa-redo"></i> Retry
+                                        </button>
+                                    </form>
+                                    
+                                    <button type="button" class="btn btn-sm btn-outline-danger mt-1" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#errorModal{{ newsletter.id }}">
+                                        <i class="fas fa-exclamation-circle"></i> Show Error
+                                    </button>
+                                    
+                                    <!-- Error Modal -->
+                                    <div class="modal fade" id="errorModal{{ newsletter.id }}" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">Error Details</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <div class="alert alert-danger">
+                                                        {{ newsletter.error_message or 'Unknown error occurred' }}
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <h4>No newsletters yet</h4>
+                    <p>Schedule your first newsletter to get started.</p>
+                    <a href="{{ url_for('schedule_newsletter') }}" class="btn btn-primary">Schedule Newsletter</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
