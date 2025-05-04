@@ -7,3 +7,6 @@ notion-client
 python-telegram-bot
 sendgrid
 pyairtable
+sqlalchemy
+flask_sqlalchemy
+python-dotenv
