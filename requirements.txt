@@ -1,0 +1,9 @@
+flask
+flask-login
+feedparser
+requests
+beautifulsoup4
+notion-client
+python-telegram-bot
+sendgrid
+pyairtable
