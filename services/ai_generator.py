@@ -1,7 +1,7 @@
 import logging
 import os
 import requests
-from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqGeneration
+from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +118,7 @@ def get_local_summarizer():
     """Load a local summarization model"""
     try:
         tokenizer = AutoTokenizer.from_pretrained(DEFAULT_MODEL)
-        model = AutoModelForSeq2SeqGeneration.from_pretrained(DEFAULT_MODEL)
+        model = AutoModelForSeq2SeqLM.from_pretrained(DEFAULT_MODEL)
         summarizer = pipeline("summarization", model=model, tokenizer=tokenizer)
         return summarizer
     except Exception as e:

@@ -10,3 +10,5 @@ pyairtable
 sqlalchemy
 flask_sqlalchemy
 python-dotenv
+trafilatura
+transformers

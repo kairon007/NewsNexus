@@ -6,8 +6,8 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from flask_login import LoginManager
 from werkzeug.middleware.proxy_fix import ProxyFix
-
-
+from dotenv import load_dotenv
+load_dotenv()
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -43,7 +43,7 @@ with app.app_context():
 
     # Import and register routes
     from routes import init_routes
-    init_routes(app)
+    init_routes(app,db)
 
     # Initialize user loader for Flask-Login
     from models import User
