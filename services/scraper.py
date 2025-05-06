@@ -5,7 +5,7 @@ import trafilatura
 from datetime import datetime
 from bs4 import BeautifulSoup
 from app import db
-from models import Article
+
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +23,7 @@ def fetch_rss_feed(feed):
         
         for entry in parsed_feed.entries:
             # Check if article already exists
+            from models import Article
             existing = Article.query.filter_by(url=entry.link, feed_id=feed.id).first()
             if existing:
                 continue
@@ -68,6 +69,7 @@ def fetch_rss_feed(feed):
 def fetch_website_content(feed):
     """Fetch and parse a regular website, saving article content to the database"""
     try:
+        from models import Article
         # Check if article already exists for this URL
         existing = Article.query.filter_by(url=feed.url, feed_id=feed.id).first()
         if existing:

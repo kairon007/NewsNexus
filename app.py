@@ -46,8 +46,9 @@ with app.app_context():
     init_routes(app,db)
 
     # Initialize user loader for Flask-Login
-    from models import User
+
     
     @login_manager.user_loader
     def load_user(user_id):
+        from models import User
         return db.session.get(User, int(user_id))
